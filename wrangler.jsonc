@@ -1,17 +1,11 @@
 {
-  "name": "google-crawling",
+  "name": "google",
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": ["/*"]
-  },
-  "kv_namespaces": [
-    { "binding": "INDEX", "id": "PASTE_ID_HERE" }
-  ],
-  "triggers": {
-    "crons": ["17 */6 * * *"]
   },
   "observability": { "enabled": true }
 }
