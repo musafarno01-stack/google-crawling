@@ -1,14 +1,17 @@
 /**
- * Path viewer. /<host>/<path>?<query> renders a page framing https://<host>/<path>?<query>.
- * Home, 404, robots, sitemap and favicon are generated here — no HTML files required.
+ * Path viewer. /<host>/<path>?<query> renders a page that frames https://<host>/<path>?<query>.
+ * Home, 404, robots, sitemap and favicon are all generated here — no HTML files needed.
+ * The target's title/description/excerpt are fetched server-side so each page is
+ * a unique, indexable document even when the site refuses to be framed.
  */
 
-const BUILD = '4.0.0';
+const BUILD = '5.0.0';
 const CACHE_TTL = 600;
 const MAX_BYTES = 300000;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const JOB_HOST_RE = /(^|\.)(remoteok|remotive|weworkremotely|arbeitnow|jobs\.gov\.pk|indeed|wellfound)\./i;
 
 const esc = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -84,7 +87,7 @@ async function meta(target, origin) {
   const hit = await cache.match(key);
   if (hit) return hit.json();
 
-  const out = { title: '', desc: '', text: '' };
+  const out = { title: '', desc: '', text: '', org: '' };
   try {
     const res = await fetch(target.href, {
       headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
@@ -97,6 +100,7 @@ async function meta(target, origin) {
                        pick(/<title[^>]*>([\s\S]*?)<\/title>/i, html), 70);
       out.desc = clip(pick(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i, html) ||
                       pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i, html), 160);
+      out.org = clip(pick(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']*)["']/i, html), 60);
       out.text = clip(textOf(html).slice(0, 1400), 900);
     }
   } catch {}
@@ -125,6 +129,7 @@ ${o.canon ? `<link rel="canonical" href="${esc(o.canon)}">` : ''}
 ${o.canon ? `<meta property="og:url" content="${esc(o.canon)}">` : ''}
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+${o.ld ? `<script type="application/ld+json">${o.ld}</script>` : ''}
 <style>${CSS}</style>
 </head>
 <body>
@@ -138,10 +143,47 @@ ${ADS}
 
 async function viewPage(target, url) {
   const origin = url.origin;
+  const canon = origin + url.pathname + (url.search || '');
   const m = await meta(target, origin);
   const human = humanise(target);
   const title = m.title || `${human} · ${target.hostname}`;
   const desc = m.desc || `View ${human} on ${target.hostname} in a clean frame. The original page is one click away.`;
+
+  const graph = [
+    {
+      '@type': 'WebPage',
+      name: title,
+      description: desc,
+      url: canon,
+      isPartOf: { '@type': 'WebSite', name: 'URL Viewer', url: origin + '/' }
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Viewer', item: origin + '/' },
+        { '@type': 'ListItem', position: 2, name: target.hostname, item: canon }
+      ]
+    }
+  ];
+
+  if (JOB_HOST_RE.test(target.hostname)) {
+    const today = new Date().toISOString().slice(0, 10);
+    graph.push({
+      '@type': 'JobPosting',
+      title: m.title || human,
+      description: `<p>${esc(m.desc || m.text || human)}</p>`,
+      datePosted: today,
+      validThrough: new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10),
+      employmentType: 'FULL_TIME',
+      directApply: false,
+      url: target.href,
+      hiringOrganization: { '@type': 'Organization', name: m.org || target.hostname },
+      jobLocationType: 'TELECOMMUTE',
+      applicantLocationRequirements: { '@type': 'Country', name: 'Worldwide' }
+    });
+  }
+
+  const ld = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph });
 
   const body = `<div class="bar"><span>Viewing <b>${esc(target.hostname)}</b></span><a href="${esc(target.href)}" target="_blank" rel="noopener">Open original ↗</a></div>
 <iframe id="viewer" src="${esc(target.href)}" title="${esc(title)}" allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin" loading="eager"></iframe>
@@ -174,25 +216,22 @@ async function viewPage(target, url) {
 })();
 </script>`;
 
-  return shell({
-    title,
-    desc,
-    canon: origin + url.pathname + (url.search || ''),
-    body
-  });
+  return shell({ title, desc, canon, ld, body });
 }
 
 function homePage(url) {
+  const origin = url.origin;
   const body = `<main>
   <h1>URL Viewer</h1>
   <p>Paste any address. It opens in a clean frame at this domain, and the page keeps the original title and text below for reference. No account, nothing stored.</p>
   <form id="go">
-    <input id="url" type="text" placeholder="jobs.gov.pk/JobSeeker/ViewJobDetails/…" autocomplete="off" spellcheck="false" aria-label="Address to view">
+    <input id="url" type="text" placeholder="remoteok.com/remote-jobs/…" autocomplete="off" spellcheck="false" aria-label="Address to view">
     <button type="submit">View</button>
   </form>
   <p class="hint">Works with or without <code>https://</code>. The address becomes <code>/&lt;host&gt;/&lt;path&gt;</code>.</p>
   <h2>Try these</h2>
   <ul>
+    <li><a href="/remoteok.com/remote-jobs/remote-software-engineer-ai-tooling-supabase-1137793">remoteok.com — remote software engineer</a></li>
     <li><a href="/jobs.gov.pk/JobSeeker/ViewJobDetails/129acf20-6a5c-49e8-ae1a-08dcc051e55e">jobs.gov.pk — job details</a></li>
     <li><a href="/wikipedia.org/wiki/Remote_work">wikipedia.org — Remote work</a></li>
     <li><a href="/example.com">example.com</a></li>
@@ -218,12 +257,12 @@ document.getElementById('go').addEventListener('submit',function(e){
   return shell({
     title: 'URL Viewer — open any page in a clean frame',
     desc: 'Paste any URL and read it in a clean full-screen frame on this domain. No signup, no redirects, no clutter.',
-    canon: url.origin + '/',
+    canon: origin + '/',
     body
   });
 }
 
-function notFound(url) {
+function notFound() {
   return shell({
     title: 'Nothing to view here',
     desc: 'The first path segment must be a real host, like /example.com/page.',
@@ -246,6 +285,7 @@ Sitemap: ${o}/sitemap.xml
 `;
 
 const EXAMPLES = [
+  'remoteok.com/remote-jobs/remote-software-engineer-ai-tooling-supabase-1137793',
   'jobs.gov.pk/JobSeeker/ViewJobDetails/129acf20-6a5c-49e8-ae1a-08dcc051e55e',
   'wikipedia.org/wiki/Remote_work',
   'example.com'
@@ -262,10 +302,7 @@ function sitemap(o) {
 
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0d1422"/><path d="M14 22h24a8 8 0 0 1 0 16H26" fill="none" stroke="#f97316" stroke-width="6" stroke-linecap="round"/><path d="M22 44l-8-6 8-6" fill="none" stroke="#f97316" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-const HTML_HEADERS = {
-  'Content-Type': 'text/html; charset=utf-8',
-  'X-Content-Type-Options': 'nosniff'
-};
+const H = { 'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff' };
 
 /* ---------- router ---------- */
 
@@ -291,18 +328,15 @@ export default {
       return Response.json({ success: true, build: BUILD, mode: 'path-viewer', time: new Date().toISOString() });
     }
 
+    /* Home — never served from a file, so a stale index.html cannot hijack it. */
     if (p === '/' || p === '/index.html') {
-      // ?url= / ?u= convenience -> redirect to the canonical path form
       const raw = url.searchParams.get('url') || url.searchParams.get('u');
       if (raw) {
         const clean = raw.trim().replace(/^https?:\/\//i, '').replace(/^\/+/, '');
-        if (HOST_RE.test(clean.split('/')[0] || '')) {
-          return Response.redirect(origin + '/' + clean, 301);
-        }
+        if (HOST_RE.test(clean.split('/')[0] || '')) return Response.redirect(origin + '/' + clean, 301);
       }
-      const html = homePage(url);
-      return new Response(html, {
-        headers: { ...HTML_HEADERS, 'Cache-Control': 'public, max-age=0, s-maxage=60', 'X-Robots-Tag': 'index, follow' }
+      return new Response(homePage(url), {
+        headers: { ...H, 'Cache-Control': 'public, max-age=0, s-maxage=60', 'X-Robots-Tag': 'index, follow' }
       });
     }
 
@@ -310,25 +344,30 @@ export default {
       return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
     }
 
+    /* Viewer — any host-like first segment. Checked BEFORE assets. */
     const target = parseTarget(url);
-    if (!target) {
-      return new Response(notFound(url), { status: 404, headers: HTML_HEADERS });
+    if (target) {
+      const cache = caches.default;
+      const key = new Request(origin + p + (url.search || ''));
+      const hit = await cache.match(key);
+      if (hit) return hit;
+
+      const res = new Response(await viewPage(target, url), {
+        headers: {
+          ...H,
+          'Cache-Control': `public, max-age=0, s-maxage=${CACHE_TTL}`,
+          'X-Robots-Tag': 'index, follow, max-image-preview:large, max-snippet:-1'
+        }
+      });
+      ctx.waitUntil(cache.put(key, res.clone()));
+      return res;
     }
 
-    const cache = caches.default;
-    const key = new Request(origin + p + (url.search || ''));
-    const hit = await cache.match(key);
-    if (hit) return hit;
-
-    const html = await viewPage(target, url);
-    const res = new Response(html, {
-      headers: {
-        ...HTML_HEADERS,
-        'Cache-Control': `public, max-age=0, s-maxage=${CACHE_TTL}`,
-        'X-Robots-Tag': 'index, follow, max-image-preview:large, max-snippet:-1'
-      }
-    });
-    ctx.waitUntil(cache.put(key, res.clone()));
-    return res;
+    /* Anything else: real asset if it exists, otherwise 404. */
+    if (env && env.ASSETS) {
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status !== 404) return asset;
+    }
+    return new Response(notFound(), { status: 404, headers: H });
   }
 };
