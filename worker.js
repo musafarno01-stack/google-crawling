@@ -1,6 +1,6 @@
 /**
  * Remote Job Crawler — edge router + SEO renderer.
- * Serves: / (server-patched HTML), /app, /api/*, /robots.txt, /sitemap.xml.
+ * Routes: / (server-patched HTML), /app, /api/crawl, /api/health, /robots.txt, /sitemap.xml.
  */
 
 const BUILD = '2.0.0';
@@ -136,12 +136,14 @@ function jobListLd(jobs, q, fetchedAt) {
   });
 }
 
-/* ---------- markup patching (function replacement so "$" stays literal) ---------- */
+/* ---------- markup patching ---------- */
+/* Function replacements keep "$" in values literal. */
 
 const sub = (html, re, val) => html.replace(re, (m, a, b) => a + val + b);
+const subWhole = (html, re, val) => html.replace(re, () => val);
 
 function patch(html, m) {
-  html = sub(html, /<title>[\s\S]*?<\/title>/, `<title>${m.title}</title>`);
+  html = subWhole(html, /<title>[\s\S]*?<\/title>/, `<title>${m.title}</title>`);
   html = sub(html, /(<meta name="description" content=")[^"]*(")/, m.desc);
   html = sub(html, /(<link rel="canonical" href=")[^"]*(")/, m.canon);
   html = sub(html, /(<meta property="og:url" content=")[^"]*(")/, m.canon);
@@ -181,7 +183,8 @@ async function render(request, env) {
   const home = !raw;
   const label = titleCase(q);
 
-  const { jobs, source, fetchedAt } = await crawl(q, 15).catch(() => ({ jobs: [], source: 'live feeds', fetchedAt: '' }));
+  const { jobs, source, fetchedAt } = await crawl(q, 15)
+    .catch(() => ({ jobs: [], source: 'live feeds', fetchedAt: '' }));
 
   const canon = home ? `${origin}/` : `${origin}/?q=${encodeURIComponent(raw)}`;
   const title = esc(home
@@ -189,7 +192,7 @@ async function render(request, env) {
     : `${label} Remote Jobs — ${jobs.length || 'Live'} Open Listings | Remote Job Crawler`);
   const desc = esc(home
     ? 'Free live remote job crawler. Search real, currently-open remote jobs for developers, designers, DevOps and writers, pulled in real time from Remotive and Arbeitnow. No signup, no keys.'
-    : `${jobs.length} live remote ${q} jobs, fetched in real time from Remotive and Arbeitnow. Free, no signup, updated on every request. Apply on the original board.`);
+    : `${jobs.length} live remote ${q} jobs, fetched in real time from Remotive and Arbeitnow. Free, no signup, refreshed on every request. Apply on the original board.`);
 
   const jobsHtml = jobs.length
     ? jobs.map((j) => `<li><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a><span class="jmeta">${esc(j.company)}${j.location ? ` · ${esc(j.location)}` : ''}${j.salary ? ` · ${esc(j.salary)}` : ''}${j.source ? ` · ${esc(j.source)}` : ''}</span></li>`).join('')
@@ -201,7 +204,9 @@ async function render(request, env) {
     canon: esc(canon),
     app: home ? '/app' : `/app?q=${encodeURIComponent(raw)}`,
     h1: home ? 'Remote Job Crawler' : `${esc(label)} remote jobs`,
-    crumbs: home ? '<li><a href="/">Home</a></li>' : `<li><a href="/">Home</a></li><li aria-current="page">${esc(label)}</li>`,
+    crumbs: home
+      ? '<li><a href="/">Home</a></li>'
+      : `<li><a href="/">Home</a></li><li aria-current="page">${esc(label)}</li>`,
     qlabel: esc(q),
     count: String(jobs.length),
     source: esc(source),
