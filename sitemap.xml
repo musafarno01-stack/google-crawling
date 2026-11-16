@@ -1,19 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://crawling.muzilla.workers.dev/</loc>
-    <lastmod>2026-11-16</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://crawling.muzilla.workers.dev/?q=react</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://crawling.muzilla.workers.dev/?q=devops</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>
+  <url><loc>https://crawling.muzilla.workers.dev/</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=react</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=devops</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=python</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=typescript</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=data-engineer</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://crawling.muzilla.workers.dev/?q=ui-ux</loc><lastmod>2026-11-16</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
 </urlset>
