@@ -1,0 +1,11 @@
+{
+  "name": "crawling",
+  "main": "functions/api/crawl.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "observability": { "enabled": true }
+}
