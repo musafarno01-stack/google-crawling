@@ -44,7 +44,7 @@
   html{scroll-behavior:smooth}
   body{margin:0;background:#0d1422;color:#e5e7eb;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 
-  /* Viewer: fills the first screen, but no longer fixed, so the page can scroll. */
+  /* Viewer fills the first screen. Not fixed, so the page below stays reachable. */
   #viewer{display:block;width:100%;height:100svh;border:0;background:#fff}
 
   .strip{display:flex;justify-content:center;gap:8px;align-items:center;padding:10px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:#94a3b8;background:#0a1020;border-bottom:1px solid #1f2937}
@@ -72,12 +72,14 @@
   footer{border-top:1px solid #1f2937;margin-top:34px;padding:22px 18px 44px;text-align:center;font-size:13px;color:#64748b}
   footer code{background:#111827;padding:2px 6px;border-radius:5px;font-size:12px}
   .noscript{border:1px solid #f97316;border-radius:12px;padding:14px;margin:16px 0;color:#fbbf24}
+  .frameerror{margin:0;padding:12px;background:#7f1d1d;color:#fff;font-size:14px}
+  .frameerror a{color:#fff}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
 
-<iframe id="viewer" title="Live remote job search tool — search and crawl open remote jobs"
+<iframe id="viewer" src="/app" title="Live remote job search tool — search and crawl open remote jobs"
   allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"
   loading="eager"></iframe>
 
