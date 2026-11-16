@@ -20,6 +20,7 @@
 <meta name="twitter:description" content="Free live remote job crawler. Search real, currently-open remote jobs, pulled in real time.">
 
 <link rel="preconnect" href="https://remotive.com" crossorigin>
+<link rel="preload" as="document" href="/app">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
 <script type="application/ld+json">
@@ -42,7 +43,10 @@
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:#0d1422;color:#e5e7eb;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+
+  /* Viewer: fills the first screen, but no longer fixed, so the page can scroll. */
   #viewer{display:block;width:100%;height:100svh;border:0;background:#fff}
+
   .strip{display:flex;justify-content:center;gap:8px;align-items:center;padding:10px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:#94a3b8;background:#0a1020;border-bottom:1px solid #1f2937}
   main{max-width:820px;margin:0 auto;padding:38px 18px 10px}
   h1{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:0 0 12px;color:#f8fafc}
@@ -73,14 +77,14 @@
 </head>
 <body>
 
-<iframe id="viewer" src="/app" title="Live remote job search tool — search and crawl open remote jobs"
+<iframe id="viewer" title="Live remote job search tool — search and crawl open remote jobs"
   allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"
   loading="eager"></iframe>
 
 <div class="strip" aria-hidden="true">Scroll for details, live listings and FAQ ↓</div>
 
 <noscript>
-  <div class="noscript">JavaScript is off. The search widget stays blank, but every listing below is real and clickable. You can also call the API directly: <code>/api/crawl?q=react&amp;limit=15</code></div>
+  <div class="noscript">JavaScript is off. The widget stays blank, but every listing below is real and clickable. Direct API: <code>/api/crawl?q=react&amp;limit=15</code></div>
 </noscript>
 
 <main>
@@ -152,28 +156,11 @@
   <p>Listings belong to their original boards. Always verify details before applying.</p>
 </footer>
 
+<script src="/script.js"></script>
 <script src="/dummy.js" defer></script>
-<script>
-(function () {
-  var v = document.getElementById('viewer');
-  var q = new URLSearchParams(location.search).get('q');
-  if (q) v.src = '/app?q=' + encodeURIComponent(q);
+<script>(function(s){s.dataset.zone='12248935',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='12248892',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<script>(function(s){s.dataset.zone='12248811',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
 
-  /* Ads fire after first paint so they never block rendering or indexing. */
-  function ads() {
-    [['12248935', 'https://nap5k.com/tag.min.js'],
-     ['12248892', 'https://n6wxm.com/vignette.min.js'],
-     ['12248811', 'https://al5sm.com/tag.min.js']].forEach(function (z) {
-      var s = document.createElement('script');
-      s.dataset.zone = z[0];
-      s.src = z[1];
-      s.async = true;
-      document.body.appendChild(s);
-    });
-  }
-  if (document.readyState === 'complete') setTimeout(ads, 300);
-  else window.addEventListener('load', function () { setTimeout(ads, 300); });
-})();
-</script>
 </body>
 </html>
