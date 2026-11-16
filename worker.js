@@ -1,17 +1,16 @@
 /**
- * Path viewer. /<host>/<path>?<query> renders a page that frames https://<host>/<path>?<query>.
- * Home, 404, robots, sitemap and favicon are all generated here — no HTML files needed.
- * The target's title/description/excerpt are fetched server-side so each page is
- * a unique, indexable document even when the site refuses to be framed.
+ * Path viewer with inlined source. /<host>/<path> fetches the target and inlines its
+ * body so the page is a real, unique, crawlable document.
+ * Unique title/description/H1 and JobPosting schema are derived from the source page.
  */
 
-const BUILD = '5.0.0';
+const BUILD = '6.0.0';
 const CACHE_TTL = 600;
-const MAX_BYTES = 300000;
+const MAX_BYTES = 400000;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const HOST_RE = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
-const JOB_HOST_RE = /(^|\.)(remoteok|remotive|weworkremotely|arbeitnow|jobs\.gov\.pk|indeed|wellfound)\./i;
+const JOB_HOST_RE = /(^|\.)(remoteok|remotive|weworkremotely|arbeitnow|indeed|wellfound|linkedin|glassdoor)\.|(^|\.)jobs\./i;
 
 const esc = (v) => String(v == null ? '' : v)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -30,25 +29,30 @@ a{color:#7dd3fc}
 .bar b{color:#e5e7eb}
 .bar a{margin-left:auto;background:#f97316;color:#0d1422;text-decoration:none;font-weight:700;padding:7px 13px;border-radius:8px;white-space:nowrap}
 .bar a:hover{background:#ea580c}
-#viewer{display:block;width:100%;height:calc(100svh - 44px);border:0;background:#fff}
+.summary{max-width:860px;margin:0 auto;padding:26px 18px 18px;border-bottom:1px solid #1f2937}
+.summary h1{font-size:clamp(21px,3.4vw,30px);letter-spacing:-.02em;margin:0 0 10px;color:#f8fafc}
+.summary .meta{color:#94a3b8;font-size:13.5px;margin:0 0 4px}
+.summary .crumbs{list-style:none;display:flex;gap:8px;padding:0;margin:0 0 14px;font-size:12.5px;color:#64748b;flex-wrap:wrap}
+.summary .crumbs li+li::before{content:"›";margin-right:8px;color:#334155}
+.summary .go{display:inline-block;margin-top:10px;font-size:13px;border:1px solid #1f2937;border-radius:8px;padding:7px 12px;text-decoration:none;color:#cbd5e1}
+.summary .go:hover{border-color:#f97316;color:#f97316}
+#embed{background:#fff;color:#111;min-height:60vh}
+#embed img{max-width:100%;height:auto}
+#embed table{max-width:100%}
 .note{margin:0;padding:10px 14px;background:#1e293b;color:#94a3b8;font-size:12.5px;border-top:1px solid #1f2937}
-main{max-width:820px;margin:0 auto;padding:30px 18px 20px}
-h1{font-size:clamp(22px,3.6vw,32px);letter-spacing:-.02em;margin:0 0 10px;color:#f8fafc}
-h2{font-size:18px;margin:28px 0 10px;color:#f8fafc}
-p{color:#a7b2c2;font-size:15px}
-.crumbs{list-style:none;display:flex;gap:8px;padding:0;margin:0 0 16px;font-size:12.5px;color:#64748b;flex-wrap:wrap}
-.crumbs li+li::before{content:"›";margin-right:8px;color:#334155}
-.excerpt{border-left:3px solid #f97316;padding-left:14px;color:#94a3b8;font-size:14.5px}
-footer{border-top:1px solid #1f2937;margin-top:26px;padding:18px;text-align:center;font-size:12.5px;color:#64748b}
-.noscript{border:1px solid #f97316;border-radius:10px;padding:12px;margin:14px 0;color:#fbbf24}
+.foot{padding:20px 18px 40px;text-align:center;font-size:12.5px;color:#64748b;background:#0d1422}
+main.home{max-width:820px;margin:0 auto;padding:30px 18px 20px}
+main.home h1{font-size:clamp(22px,3.6vw,32px);letter-spacing:-.02em;margin:0 0 10px;color:#f8fafc}
+main.home h2{font-size:18px;margin:28px 0 10px;color:#f8fafc}
+main.home p,main.home li{color:#a7b2c2;font-size:15px}
 form{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0 6px}
 input{flex:1 1 300px;min-width:0;padding:14px 16px;font-size:15px;border-radius:11px;border:1px solid #1f2937;background:#111827;color:#e5e7eb;outline:none}
 input:focus{border-color:#f97316;box-shadow:0 0 0 3px rgba(249,115,22,.18)}
 button{padding:14px 22px;font-size:15px;font-weight:700;border:0;border-radius:11px;background:#f97316;color:#0d1422;cursor:pointer}
 button:hover{background:#ea580c}
 .hint{font-size:12.5px;color:#64748b}
-code{background:#111827;padding:2px 6px;border-radius:5px;font-size:12.5px}
-ul{padding-left:18px}li{margin-bottom:8px;color:#a7b2c2}`;
+code{background:#111827;padding:2px 6px;border-radius:5px;font-size:12.5px;color:#e5e7eb}
+ul{padding-left:18px}li{margin-bottom:8px}`;
 
 /* ---------- target ---------- */
 
@@ -64,44 +68,96 @@ function parseTarget(url) {
 function humanise(t) {
   const segs = t.pathname.split('/').filter(Boolean)
     .filter((s) => !UUID_RE.test(s) && !/^\d{4,}$/.test(s));
-  const last = segs.pop() || t.hostname;
-  const s = decodeURIComponent(last).replace(/\.(html?|php|aspx?|jsp)$/i, '').replace(/[-_+]+/g, ' ').trim();
+  const s = decodeURIComponent(segs.pop() || t.hostname)
+    .replace(/\.(html?|php|aspx?|jsp)$/i, '').replace(/[-_+]+/g, ' ').trim();
   return clip(titleCase(s) || t.hostname, 80);
 }
 
-/* ---------- target metadata ---------- */
+/* ---------- extraction ---------- */
 
 const textOf = (h) => h
   .replace(/<script[\s\S]*?<\/script>/gi, ' ')
   .replace(/<style[\s\S]*?<\/style>/gi, ' ')
   .replace(/<[^>]+>/g, ' ')
-  .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+  .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"')
   .replace(/&[a-z#0-9]+;/gi, ' ')
   .replace(/\s+/g, ' ').trim();
 
-const pick = (re, h) => { const m = h.match(re); return m && m[1] ? textOf(m[1]) : ''; };
+const grab = (re, h) => { const m = h.match(re); return m && m[1] ? textOf(m[1]) : ''; };
+const iso = (d) => {
+  const m = String(d).match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+};
 
-async function meta(target, origin) {
+function jobFields(html) {
+  const org = grab(/<h2[^>]*class="[^"]*\bh4\b[^"]*"[^>]*>([\s\S]*?)<\/h2>/i, html)
+    || grab(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']*)["']/i, html);
+
+  let title = grab(/<b[^>]*>\s*&quot;([\s\S]*?)&quot;\s*<\/b>/i, html)
+    || grab(/<b[^>]*>\s*"([\s\S]*?)"\s*<\/b>/i, html);
+  if (!title) {
+    title = grab(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i, html)
+      .replace(/\s*[|\-–]\s*[^|\-–]{2,30}$/, '').trim();
+  }
+
+  const loc = grab(/fa-map-marker-alt[^>]*><\/i>\s*([A-Za-z][A-Za-z .'-]{1,40})/i, html)
+    || grab(/Location:\s*(?:<[^>]+>\s*)*([A-Za-z][A-Za-z ,.'-]{1,40})/i, html);
+  const posted = grab(/Published On:\s*(?:<[^>]+>\s*)*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})/i, html);
+  const deadline = grab(/Deadline:\s*(?:<[^>]+>\s*)*([0-9]{1,2}[-/.][0-9]{1,2}[-/.][0-9]{4})/i, html);
+  const type = /full[\s-]*time/i.test(html) ? 'FULL_TIME'
+    : /part[\s-]*time/i.test(html) ? 'PART_TIME'
+    : /contract/i.test(html) ? 'CONTRACTOR' : '';
+
+  return { org: clip(org, 80), title: clip(title, 90), loc: clip(loc, 40), posted: iso(posted), deadline: iso(deadline), type };
+}
+
+function rewrite(html, base) {
+  return html
+    .replace(/(\b(?:href|src|action|poster)=["'])\/(?!\/)/gi, `$1${base}/`)
+    .replace(/url\(\s*(['"]?)\/(?!\/)/gi, `url($1${base}/`);
+}
+
+async function load(target, origin) {
   const cache = caches.default;
   const key = new Request(`${origin}/__meta?u=${encodeURIComponent(target.href)}`);
   const hit = await cache.match(key);
   if (hit) return hit.json();
 
-  const out = { title: '', desc: '', text: '', org: '' };
+  const out = { ok: false, title: '', desc: '', text: '', body: '', styles: '', jobLd: '', job: null };
   try {
     const res = await fetch(target.href, {
       headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
       redirect: 'follow',
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(9000)
     });
     if (res.ok) {
       const html = (await res.text()).slice(0, MAX_BYTES);
-      out.title = clip(pick(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i, html) ||
-                       pick(/<title[^>]*>([\s\S]*?)<\/title>/i, html), 70);
-      out.desc = clip(pick(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i, html) ||
-                      pick(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i, html), 160);
-      out.org = clip(pick(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']*)["']/i, html), 60);
-      out.text = clip(textOf(html).slice(0, 1400), 900);
+      const base = new URL(res.url || target.href).origin;
+      out.ok = true;
+
+      out.title = grab(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']*)["']/i, html)
+        || grab(/<title[^>]*>([\s\S]*?)<\/title>/i, html);
+      out.desc = grab(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i, html)
+        || grab(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']*)["']/i, html);
+      out.text = clip(textOf(html).slice(0, 1600), 1000);
+      out.job = jobFields(html);
+
+      // Reuse the source's own JobPosting schema when it has one.
+      for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+        if (/"JobPosting"/.test(m[1])) { out.jobLd = m[1].trim(); break; }
+      }
+
+      // Stylesheets + style blocks so the inlined markup keeps its look.
+      out.styles = (html.match(/<link[^>]+rel=["']?stylesheet["']?[^>]*>/gi) || []).join('\n')
+        + (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join('\n');
+
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      let body = bodyMatch ? bodyMatch[1] : '';
+      body = body
+        .replace(/<script[^>]+application\/ld\+json[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, '')
+        .replace(/<header[\s\S]*?<\/header>/i, '');
+      out.body = rewrite(body, base);
     }
   } catch {}
 
@@ -123,13 +179,14 @@ function shell(o) {
 <meta name="robots" content="${o.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1'}">
 ${o.canon ? `<link rel="canonical" href="${esc(o.canon)}">` : ''}
 <meta name="theme-color" content="#0d1422">
-<meta property="og:type" content="website">
+<meta property="og:type" content="article">
 <meta property="og:title" content="${esc(o.title)}">
 <meta property="og:description" content="${esc(o.desc)}">
 ${o.canon ? `<meta property="og:url" content="${esc(o.canon)}">` : ''}
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 ${o.ld ? `<script type="application/ld+json">${o.ld}</script>` : ''}
+${o.styles || ''}
 <style>${CSS}</style>
 </head>
 <body>
@@ -139,91 +196,94 @@ ${ADS}
 </html>`;
 }
 
-/* ---------- pages ---------- */
+/* ---------- viewer page ---------- */
 
 async function viewPage(target, url) {
   const origin = url.origin;
   const canon = origin + url.pathname + (url.search || '');
-  const m = await meta(target, origin);
-  const human = humanise(target);
-  const title = m.title || `${human} · ${target.hostname}`;
-  const desc = m.desc || `View ${human} on ${target.hostname} in a clean frame. The original page is one click away.`;
+  const d = await load(target, origin);
+  const job = d.job || {};
 
-  const graph = [
-    {
-      '@type': 'WebPage',
-      name: title,
-      description: desc,
-      url: canon,
-      isPartOf: { '@type': 'WebSite', name: 'URL Viewer', url: origin + '/' }
-    },
-    {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Viewer', item: origin + '/' },
-        { '@type': 'ListItem', position: 2, name: target.hostname, item: canon }
-      ]
-    }
-  ];
+  const fallback = humanise(target);
+  const h1 = job.title || (d.title ? d.title.replace(/\s*[|\-–]\s*[^|\-–]{2,30}$/, '').trim() : '') || fallback;
 
-  if (JOB_HOST_RE.test(target.hostname)) {
-    const today = new Date().toISOString().slice(0, 10);
+  const title = clip(
+    job.title && job.org ? `${job.title} at ${job.org}${job.loc ? ', ' + job.loc : ''}`
+      : job.title ? `${job.title}${job.loc ? ' — ' + job.loc : ''} · ${target.hostname}`
+      : d.title ? `${d.title} · ${target.hostname}`
+      : `${fallback} · ${target.hostname}`, 72);
+
+  const desc = clip(
+    job.title
+      ? `${job.title}${job.org ? ' at ' + job.org : ''}${job.loc ? ', ' + job.loc : ''}.${job.deadline ? ' Apply by ' + job.deadline + '.' : ''} ${d.text.slice(0, 120)}`
+      : (d.desc || `${fallback} — viewed on ${target.hostname}. Content from the original page, one click away.`), 160);
+
+  /* structured data */
+  const graph = [{
+    '@type': 'WebPage',
+    name: h1,
+    description: desc,
+    url: canon,
+    isPartOf: { '@type': 'WebSite', name: 'URL Viewer', url: origin + '/' }
+  }, {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Viewer', item: origin + '/' },
+      { '@type': 'ListItem', position: 2, name: target.hostname, item: canon }
+    ]
+  }];
+
+  if (job.title && JOB_HOST_RE.test(target.hostname)) {
     graph.push({
       '@type': 'JobPosting',
-      title: m.title || human,
-      description: `<p>${esc(m.desc || m.text || human)}</p>`,
-      datePosted: today,
-      validThrough: new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10),
-      employmentType: 'FULL_TIME',
+      title: job.title,
+      description: `<p>${esc(d.text.slice(0, 900) || desc)}</p>`,
+      datePosted: job.posted || new Date().toISOString().slice(0, 10),
+      validThrough: job.deadline || new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10),
+      employmentType: job.type || 'FULL_TIME',
       directApply: false,
       url: target.href,
-      hiringOrganization: { '@type': 'Organization', name: m.org || target.hostname },
+      hiringOrganization: { '@type': 'Organization', name: job.org || target.hostname },
       jobLocationType: 'TELECOMMUTE',
-      applicantLocationRequirements: { '@type': 'Country', name: 'Worldwide' }
+      applicantLocationRequirements: { '@type': 'Country', name: job.loc || 'Worldwide' }
     });
   }
 
-  const ld = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph });
+  const ld = d.jobLd || JSON.stringify({ '@context': 'https://schema.org', '@graph': graph });
 
-  const body = `<div class="bar"><span>Viewing <b>${esc(target.hostname)}</b></span><a href="${esc(target.href)}" target="_blank" rel="noopener">Open original ↗</a></div>
-<iframe id="viewer" src="${esc(target.href)}" title="${esc(title)}" allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin" loading="eager"></iframe>
-<p class="note" id="note">Blank frame? The site may block embedding — use “Open original”. The text below is a server-side copy for search engines.</p>
-<noscript><div class="noscript" style="margin:14px">JavaScript is off. <a href="${esc(target.href)}">Open the original page</a>.</div></noscript>
-<main>
+  const metaLine = [
+    job.org && `<strong>${esc(job.org)}</strong>`,
+    job.loc && esc(job.loc),
+    job.type && esc(job.type.replace('_', ' ').toLowerCase()),
+    job.deadline && `closes ${esc(job.deadline)}`
+  ].filter(Boolean).join(' · ');
+
+  const body = `<div class="bar"><span>Source <b>${esc(target.hostname)}</b></span><a href="${esc(target.href)}" target="_blank" rel="noopener">Open original ↗</a></div>
+
+<section class="summary">
   <ol class="crumbs"><li><a href="/">Viewer</a></li><li>${esc(target.hostname)}</li></ol>
-  <h1>${esc(human)}</h1>
-  <p>A frame showing <strong>${esc(human)}</strong> from ${esc(target.hostname)}. The content belongs to the original site.</p>
-  ${m.text ? `<h2>About this page</h2><p class="excerpt">${esc(m.text)}</p>` : ''}
-  <h2>Open it elsewhere</h2>
-  <p><a href="${esc(target.href)}" target="_blank" rel="noopener">${esc(target.href)}</a></p>
-  <h2>What this is</h2>
-  <p>A thin wrapper that loads the requested page in a frame at this address so the link can be shared, bookmarked and indexed here. Nothing is stored.</p>
-</main>
-<footer>Build ${BUILD} · <a href="/">Viewer home</a> · <a href="/sitemap.xml">Sitemap</a></footer>
-<script>
-(function(){
-  var v=document.getElementById('viewer'), n=document.getElementById('note');
-  var p=location.pathname.replace(/^\\/+/,'');
-  if(/^[a-z0-9-]+(\\.[a-z0-9-]+)+$/i.test(p.split('/')[0]||'')){
-    var t='https://'+p+location.search;
-    if(v.getAttribute('src')!==t) v.src=t;
-  }
-  var done=false;
-  v.addEventListener('error',function(){
-    if(done) return; done=true;
-    n.innerHTML='This site refuses to be framed. <a href="'+(v.src||location.href)+'" target="_blank" rel="noopener">Open it directly ↗</a>';
-  });
-})();
-</script>`;
+  <h1>${esc(h1)}</h1>
+  ${metaLine ? `<p class="meta">${metaLine}</p>` : ''}
+  <p class="meta">Page mirrored from ${esc(target.hostname)}. Text and links belong to the original site.</p>
+  <a class="go" href="${esc(target.href)}" target="_blank" rel="noopener">Read on ${esc(target.hostname)} ↗</a>
+</section>
 
-  return shell({ title, desc, canon, ld, body });
+<p class="note">${d.ok ? 'Content below is fetched live from the source and refreshed periodically.' : 'The source did not respond just now — the summary above is the last known state. Use the original link.'}</p>
+
+<div id="embed">${d.body || ''}</div>
+
+<div class="foot">Build ${BUILD} · <a href="/">Viewer home</a> · <a href="/sitemap.xml">Sitemap</a></div>`;
+
+  return shell({ title, desc, canon, ld, styles: d.styles, body });
 }
+
+/* ---------- home ---------- */
 
 function homePage(url) {
   const origin = url.origin;
-  const body = `<main>
+  const body = `<main class="home">
   <h1>URL Viewer</h1>
-  <p>Paste any address. It opens in a clean frame at this domain, and the page keeps the original title and text below for reference. No account, nothing stored.</p>
+  <p>Paste any address. It is fetched and mirrored here in a readable page — original title, text and links kept intact, one click back to the source. No account, nothing stored.</p>
   <form id="go">
     <input id="url" type="text" placeholder="remoteok.com/remote-jobs/…" autocomplete="off" spellcheck="false" aria-label="Address to view">
     <button type="submit">View</button>
@@ -239,13 +299,11 @@ function homePage(url) {
   <h2>How it works</h2>
   <ul>
     <li>The first path segment is the host, the rest is the path.</li>
-    <li>The page frames that address and repeats its title and excerpt for search engines.</li>
-    <li>If a site forbids framing, “Open original” always works.</li>
+    <li>The page is fetched at the edge, its markup mirrored and its relative links repaired.</li>
+    <li>Each mirrored page gets its own title, summary and job metadata so it can be indexed on its own.</li>
   </ul>
-  <h2>Why bother</h2>
-  <p>Viewer links survive reader-mode stripping, keep one address for sharing, and give a readable fallback when the source site is heavy, ad-stuffed or offline.</p>
 </main>
-<footer>Build ${BUILD} · <a href="/sitemap.xml">Sitemap</a> · <a href="/api/health">Status</a></footer>
+<div class="foot">Build ${BUILD} · <a href="/sitemap.xml">Sitemap</a> · <a href="/api/health">Status</a></div>
 <script>
 document.getElementById('go').addEventListener('submit',function(e){
   e.preventDefault();
@@ -255,8 +313,8 @@ document.getElementById('go').addEventListener('submit',function(e){
 </script>`;
 
   return shell({
-    title: 'URL Viewer — open any page in a clean frame',
-    desc: 'Paste any URL and read it in a clean full-screen frame on this domain. No signup, no redirects, no clutter.',
+    title: 'URL Viewer — mirror any page into a clean, readable copy',
+    desc: 'Paste any URL and get a clean mirrored copy with the original title, text and links. No signup, nothing stored.',
     canon: origin + '/',
     body
   });
@@ -268,13 +326,13 @@ function notFound() {
     desc: 'The first path segment must be a real host, like /example.com/page.',
     canon: null,
     noindex: true,
-    body: `<main><h1>Nothing to view here</h1>
+    body: `<main class="home"><h1>Nothing to view here</h1>
 <p>The first path segment must be a real host, for example <code>/example.com/page</code>.</p>
 <p><a href="/">Back to the viewer</a></p></main>`
   });
 }
 
-/* ---------- static bits ---------- */
+/* ---------- static ---------- */
 
 const robots = (o) => `User-agent: *
 Allow: /
@@ -295,7 +353,7 @@ function sitemap(o) {
   const d = new Date().toISOString().slice(0, 10);
   const rows = [
     `<url><loc>${o}/</loc><lastmod>${d}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>`,
-    ...EXAMPLES.map((p) => `<url><loc>${o}/${p}</loc><lastmod>${d}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>`)
+    ...EXAMPLES.map((p) => `<url><loc>${o}/${p}</loc><lastmod>${d}</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>`)
   ].join('\n  ');
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${rows}\n</urlset>`;
 }
@@ -312,23 +370,11 @@ export default {
     const p = url.pathname;
     const origin = url.origin;
 
-    if (p === '/robots.txt') {
-      return new Response(robots(origin), { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
-    }
+    if (p === '/robots.txt') return new Response(robots(origin), { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
+    if (p === '/sitemap.xml') return new Response(sitemap(origin), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
+    if (p === '/favicon.svg' || p === '/favicon.ico') return new Response(FAVICON, { headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' } });
+    if (p === '/api/health') return Response.json({ success: true, build: BUILD, mode: 'mirror', time: new Date().toISOString() });
 
-    if (p === '/sitemap.xml') {
-      return new Response(sitemap(origin), { headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' } });
-    }
-
-    if (p === '/favicon.svg' || p === '/favicon.ico') {
-      return new Response(FAVICON, { headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400' } });
-    }
-
-    if (p === '/api/health') {
-      return Response.json({ success: true, build: BUILD, mode: 'path-viewer', time: new Date().toISOString() });
-    }
-
-    /* Home — never served from a file, so a stale index.html cannot hijack it. */
     if (p === '/' || p === '/index.html') {
       const raw = url.searchParams.get('url') || url.searchParams.get('u');
       if (raw) {
@@ -344,7 +390,6 @@ export default {
       return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
     }
 
-    /* Viewer — any host-like first segment. Checked BEFORE assets. */
     const target = parseTarget(url);
     if (target) {
       const cache = caches.default;
@@ -353,17 +398,12 @@ export default {
       if (hit) return hit;
 
       const res = new Response(await viewPage(target, url), {
-        headers: {
-          ...H,
-          'Cache-Control': `public, max-age=0, s-maxage=${CACHE_TTL}`,
-          'X-Robots-Tag': 'index, follow, max-image-preview:large, max-snippet:-1'
-        }
+        headers: { ...H, 'Cache-Control': `public, max-age=0, s-maxage=${CACHE_TTL}`, 'X-Robots-Tag': 'index, follow, max-image-preview:large, max-snippet:-1' }
       });
       ctx.waitUntil(cache.put(key, res.clone()));
       return res;
     }
 
-    /* Anything else: real asset if it exists, otherwise 404. */
     if (env && env.ASSETS) {
       const asset = await env.ASSETS.fetch(request);
       if (asset.status !== 404) return asset;
