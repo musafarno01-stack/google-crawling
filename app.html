@@ -90,7 +90,6 @@
   var button = document.getElementById('crawlBtn');
   var results = document.getElementById('results');
   var statusEl = document.getElementById('status');
-  var banner = document.getElementById('banner');
   var busy = false;
 
   function esc(v) {
@@ -100,6 +99,12 @@
   function say(t, k) { statusEl.textContent = t || ''; statusEl.className = 'status' + (k ? ' ' + k : ''); }
   function setBusy(v) { busy = v; button.disabled = v; button.textContent = v ? 'Crawling…' : 'Crawl Jobs'; }
   function fail(m) { say('Failed', 'bad'); results.innerHTML = '<p class="state bad">Crawl failed: ' + esc(m) + '</p>'; }
+
+  /* Tell the parent page what was searched so its URL stays shareable. */
+  function tellParent(q) {
+    if (window.parent === window) return;
+    try { parent.postMessage({ type: 'query', q: q }, location.origin); } catch (e) {}
+  }
 
   function renderJobs(list) {
     var html = '';
@@ -137,10 +142,12 @@
       if (!data.jobs || !data.jobs.length) {
         say('0 matches', 'bad');
         results.innerHTML = '<p class="state">No live listings for <strong>' + esc(data.query || q) + '</strong>. Try a broader keyword.</p>';
+        tellParent(q);
         return;
       }
       say(data.count + ' live listing' + (data.count === 1 ? '' : 's') + ' · ' + (data.source || ''), 'ok');
       renderJobs(data.jobs);
+      tellParent(q);
       try {
         var u = new URL(location.href);
         u.searchParams.set('q', q);
