@@ -3,25 +3,177 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Viewer</title>
+<title>Remote Job Crawler — Live Remote Tech Jobs at the Edge</title>
+<meta name="description" content="Free live remote job crawler. Search real, currently-open remote jobs for developers, designers, DevOps and writers, pulled in real time from Remotive and Arbeitnow. No signup, no keys.">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+<link rel="canonical" href="/">
+<meta name="theme-color" content="#0d1422">
+<meta name="author" content="Remote Job Crawler">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Remote Job Crawler">
+<meta property="og:title" content="Remote Job Crawler — Live Remote Tech Jobs at the Edge">
+<meta property="og:description" content="Free live remote job crawler. Search real, currently-open remote jobs, pulled in real time. No signup, no keys.">
+<meta property="og:url" content="/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Remote Job Crawler — Live Remote Tech Jobs at the Edge">
+<meta name="twitter:description" content="Free live remote job crawler. Search real, currently-open remote jobs, pulled in real time.">
+
+<link rel="preconnect" href="https://remotive.com" crossorigin>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Remote Job Crawler",
+  "url": "/",
+  "inLanguage": "en",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": { "@type": "EntryPoint", "urlTemplate": "/?q={search_term_string}" },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+<script type="application/ld+json" id="joblist-ld">{}</script>
+
 <style>
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:#0d1422;overflow:hidden}
-  #viewer{
-    position:fixed;inset:0;width:100%;height:100%;
-    border:0;display:block;background:#fff
-  }
+  html{scroll-behavior:smooth}
+  body{margin:0;background:#0d1422;color:#e5e7eb;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  #viewer{display:block;width:100%;height:100svh;border:0;background:#fff}
+  .strip{display:flex;justify-content:center;gap:8px;align-items:center;padding:10px;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;color:#94a3b8;background:#0a1020;border-bottom:1px solid #1f2937}
+  main{max-width:820px;margin:0 auto;padding:38px 18px 10px}
+  h1{font-size:clamp(24px,4vw,34px);letter-spacing:-.02em;margin:0 0 12px;color:#f8fafc}
+  h2{font-size:19px;margin:34px 0 12px;color:#f8fafc;letter-spacing:-.01em}
+  p,li{color:#a7b2c2;font-size:15px}
+  a{color:#7dd3fc}
+  .lede{font-size:16.5px;color:#cbd5e1}
+  .dim{color:#64748b;font-weight:400}
+  .crumbs{list-style:none;display:flex;gap:8px;padding:0;margin:0 0 18px;font-size:12.5px;color:#64748b}
+  .crumbs li+li::before{content:"/";margin-right:8px;color:#334155}
+  .jobs{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+  .jobs li{border:1px solid #1f2937;border-radius:12px;padding:13px 15px;background:#111827}
+  .jobs li.empty{color:#94a3b8;font-size:14.5px}
+  .jobs li a{font-weight:700;font-size:15.5px;text-decoration:none;color:#7dd3fc}
+  .jobs li a:hover{text-decoration:underline}
+  .jmeta{display:block;font-size:12.8px;color:#94a3b8;margin-top:5px}
+  .tags{display:flex;flex-wrap:wrap;gap:8px;padding:0;margin:0;list-style:none}
+  .tags a{display:inline-block;font-size:13px;padding:7px 12px;border-radius:999px;background:#111827;border:1px solid #1f2937;text-decoration:none;color:#cbd5e1}
+  .tags a:hover{border-color:#f97316;color:#f97316}
+  details{border-top:1px solid #1f2937;padding:12px 0}
+  summary{font-weight:700;cursor:pointer;color:#e5e7eb;font-size:15px}
+  details p{margin:8px 0 0;font-size:14.5px}
+  footer{border-top:1px solid #1f2937;margin-top:34px;padding:22px 18px 44px;text-align:center;font-size:13px;color:#64748b}
+  footer code{background:#111827;padding:2px 6px;border-radius:5px;font-size:12px}
+  .noscript{border:1px solid #f97316;border-radius:12px;padding:14px;margin:16px 0;color:#fbbf24}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
 
-<iframe id="viewer" allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+<iframe id="viewer" src="/app" title="Live remote job search tool — search and crawl open remote jobs"
+  allow="clipboard-write; fullscreen" referrerpolicy="strict-origin-when-cross-origin"
+  loading="eager"></iframe>
 
-<script src="/dummy.js"></script>
-<script>(function(s){s.dataset.zone='12248935',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-<script>(function(s){s.dataset.zone='12248892',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
-<script>(function(s){s.dataset.zone='12248811',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
+<div class="strip" aria-hidden="true">Scroll for details, live listings and FAQ ↓</div>
 
+<noscript>
+  <div class="noscript">JavaScript is off. The search widget stays blank, but every listing below is real and clickable. You can also call the API directly: <code>/api/crawl?q=react&amp;limit=15</code></div>
+</noscript>
+
+<main>
+  <ol class="crumbs" id="crumbs"><li><a href="/">Home</a></li></ol>
+
+  <h1 id="page-h1">Remote Job Crawler</h1>
+  <p class="lede"><strong>Remote Job Crawler</strong> searches currently-open remote jobs across public job boards and returns them in real time — title, company, location, salary band and category. No account, no API key, no stored database. Every search is a live request against the source feeds, so what you see was posted minutes ago, not months ago.</p>
+  <p>Use the widget above, or pick a <a href="/?q=react">curated search</a> below. Applying always happens on the original board.</p>
+
+  <h2>Live listings for “<span id="qlabel">software engineer</span>” <span class="dim">— <span id="count">0</span> found via <span id="source">live feeds</span></span></h2>
+  <ul class="jobs" id="jobs"></ul>
+
+  <h2>How it works</h2>
+  <ul>
+    <li>You submit a keyword and a result count.</li>
+    <li>An edge Worker queries the Remotive and Arbeitnow public feeds in parallel.</li>
+    <li>Results are filtered by keyword, de-duplicated and normalised into one schema.</li>
+    <li>Listings render with a direct link to the original posting.</li>
+  </ul>
+
+  <h2>Who it is for</h2>
+  <p>Developers, designers, DevOps and SRE engineers, data and ML people, technical writers and support staff looking for remote-only work — especially anyone tired of signing up to five job boards to see the same postings republished everywhere.</p>
+
+  <h2>Popular searches</h2>
+  <ul class="tags">
+    <li><a href="/?q=react">React</a></li>
+    <li><a href="/?q=node">Node.js</a></li>
+    <li><a href="/?q=python">Python</a></li>
+    <li><a href="/?q=javascript">JavaScript</a></li>
+    <li><a href="/?q=typescript">TypeScript</a></li>
+    <li><a href="/?q=devops">DevOps</a></li>
+    <li><a href="/?q=kubernetes">Kubernetes</a></li>
+    <li><a href="/?q=aws">AWS</a></li>
+    <li><a href="/?q=data-engineer">Data Engineer</a></li>
+    <li><a href="/?q=machine-learning">Machine Learning</a></li>
+    <li><a href="/?q=golang">Go</a></li>
+    <li><a href="/?q=rust">Rust</a></li>
+    <li><a href="/?q=ui-ux">UI/UX</a></li>
+    <li><a href="/?q=product-manager">Product Manager</a></li>
+    <li><a href="/?q=technical-writer">Technical Writer</a></li>
+    <li><a href="/?q=customer-support">Customer Support</a></li>
+  </ul>
+
+  <h2>Frequently asked questions</h2>
+  <details open>
+    <summary>Which job boards are crawled?</summary>
+    <p>Remotive and Arbeitnow. Both publish public remote-job feeds the Worker reads on every request.</p>
+  </details>
+  <details>
+    <summary>Is it free?</summary>
+    <p>Yes. No account, no key, no payment. Apply directly on the original board.</p>
+  </details>
+  <details>
+    <summary>Are the listings current?</summary>
+    <p>Yes — fetched at the moment you run a crawl, never cached in a database. Some roles disappear within hours because they were filled.</p>
+  </details>
+  <details>
+    <summary>Can I use the API directly?</summary>
+    <p>Yes: <code>/api/crawl?q=your+keyword&amp;limit=15</code> returns JSON. <code>/api/health</code> returns build and status.</p>
+  </details>
+  <details>
+    <summary>Why do some searches return nothing?</summary>
+    <p>Only currently-open roles are returned. A narrow keyword can legitimately have zero matches today — broaden the term instead of paging.</p>
+  </details>
+</main>
+
+<footer>
+  <p>Build <span id="build">2.0.0</span> · © <span id="year">2026</span> Remote Job Crawler · <a href="/sitemap.xml">Sitemap</a> · <a href="/api/health">API status</a></p>
+  <p>Listings belong to their original boards. Always verify details before applying.</p>
+</footer>
+
+<script src="/dummy.js" defer></script>
+<script>
+(function () {
+  var v = document.getElementById('viewer');
+  var q = new URLSearchParams(location.search).get('q');
+  if (q) v.src = '/app?q=' + encodeURIComponent(q);
+
+  /* Ads fire after first paint so they never block rendering or indexing. */
+  function ads() {
+    [['12248935', 'https://nap5k.com/tag.min.js'],
+     ['12248892', 'https://n6wxm.com/vignette.min.js'],
+     ['12248811', 'https://al5sm.com/tag.min.js']].forEach(function (z) {
+      var s = document.createElement('script');
+      s.dataset.zone = z[0];
+      s.src = z[1];
+      s.async = true;
+      document.body.appendChild(s);
+    });
+  }
+  if (document.readyState === 'complete') setTimeout(ads, 300);
+  else window.addEventListener('load', function () { setTimeout(ads, 300); });
+})();
+</script>
 </body>
 </html>
